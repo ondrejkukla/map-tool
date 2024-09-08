@@ -1,0 +1,16 @@
+div #map {
+	width: 720px;
+	height: 560px;
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+	background: #dddddd;
+	border-radius: 16px;
+}
+
+.map__container {
+	width: 1440px;
+	display: flex;
+	justify-content:center;
+	gap: 56px;
+}
