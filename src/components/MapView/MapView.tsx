@@ -73,7 +73,7 @@ const MapView: React.FC = () => {
 				checked={mode === 'polygon'}
 				onChange={handleModeChange}
 				/>
-				Polygon Mode
+				Polyline Mode
 			</label>
 		</div>
 		<div id="map" ref={mapRef} />
