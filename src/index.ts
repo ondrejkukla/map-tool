@@ -1,7 +1,7 @@
 import map from './assets/map_gta.webp';
 
 const images = {
-	map
+	map,
 };
 
 export default { images };

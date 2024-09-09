@@ -1,349 +1,428 @@
 import { useContext, useState, useEffect } from 'react';
-import { Draw, Modify } from 'ol/interaction'; // Import Modify interaction
+import { Draw, Modify } from 'ol/interaction';
 import { Vector as VectorLayer } from 'ol/layer';
 import { Vector as VectorSource } from 'ol/source';
 import { Feature } from 'ol';
 import { LineString } from 'ol/geom';
 import { getLength } from 'ol/sphere';
-import { toLonLat, fromLonLat } from 'ol/proj'; // Ensure fromLonLat is imported
+import { toLonLat, fromLonLat } from 'ol/proj';
 import MapContext from '../MapContext/MapContext';
 import { Coordinate } from 'ol/coordinate';
-import { Stroke, Style } from 'ol/style'; // Import styles
+import { Stroke, Style } from 'ol/style';
+import './SectionDrawer.css';
 
 interface Section {
-  coordinates: Coordinate[];
-  length: number;
-  azimuth: number;
-  color: string;
+	id: string;
+	coordinates: Coordinate[];
+	length: number;
+	azimuth: number;
+	color: string;
 }
 
 const SectionDrawer = () => {
-  const { map, isMapReady } = useContext(MapContext);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [drawInteraction, setDrawInteraction] = useState<Draw | null>(null);
-  const [vectorLayer, setVectorLayer] = useState<VectorLayer | null>(null);
-  const [sections, setSections] = useState<Section[]>([]);
+	const { map, isMapReady } = useContext(MapContext);
+	const [isDrawing, setIsDrawing] = useState(false);
+	const [drawInteraction, setDrawInteraction] = useState<Draw | null>(null);
+	const [vectorLayer, setVectorLayer] = useState<VectorLayer | null>(null);
+	const [sections, setSections] = useState<Section[]>([]);
 
-  const [lengthUnit, setLengthUnit] = useState<'km' | 'miles'>('km');
-  const [azimuthUnit, setAzimuthUnit] = useState<'degrees' | 'radians'>('degrees');
+	const [lengthUnit, setLengthUnit] = useState<'km' | 'miles'>('km');
+	const [azimuthUnit, setAzimuthUnit] = useState<'degrees' | 'radians'>(
+		'degrees'
+	);
 
-  const [manualCoordinates, setManualCoordinates] = useState({
-    x1: '', y1: '', x2: '', y2: ''
-  });
+	const [manualCoordinates, setManualCoordinates] = useState({
+		x1: '',
+		y1: '',
+		x2: '',
+		y2: '',
+	});
 
-  useEffect(() => {
-    if (map && !vectorLayer) {
-      const source = new VectorSource();
-      const layer = new VectorLayer({ source });
-      map.addLayer(layer);
-      setVectorLayer(layer);
+	useEffect(() => {
+		if (map && !vectorLayer) {
+			const source = new VectorSource();
+			const layer = new VectorLayer({ source });
+			map.addLayer(layer);
+			setVectorLayer(layer);
 
-      // Enable modification interaction after the vectorLayer is created
-      enableModifyInteraction();
-    }
-  }, [map, vectorLayer]);
+			enableModifyInteraction();
+		}
+	}, [map, vectorLayer]);
 
-  const enableModifyInteraction = () => {
-    if (map && vectorLayer) {
-      const modify = new Modify({ source: vectorLayer.getSource()! });
-      map.addInteraction(modify);
+	const enableModifyInteraction = () => {
+		if (map && vectorLayer) {
+			const modify = new Modify({ source: vectorLayer.getSource()! });
+			map.addInteraction(modify);
 
-      // Listen for modifications and update the section data
-      modify.on('modifyend', (event) => {
-        const modifiedFeatures = event.features.getArray();
-        const updatedSections = modifiedFeatures.map((feature: Feature) => {
-          const geometry = feature.getGeometry() as LineString;
-          const coordinates = geometry.getCoordinates();
-          const lonLatCoordinates = coordinates.map(coord => {
-            const lonLat = toLonLat(coord);
-            return lonLat.map(value => parseFloat(value.toFixed(4))) as Coordinate; // Ensure 4 decimal places
-          });
-          const length = getLength(geometry);
+			// Listen for modifications and update the specific section data
+			modify.on('modifyend', (event) => {
+				const modifiedFeatures = event.features.getArray();
 
-          return {
-            coordinates: lonLatCoordinates,
-            length,
-            azimuth: calculateAzimuth(coordinates),
-            color: feature.get('color'),
-          };
-        });
+				const updatedSections = [...sections]; // Copy the current sections array
 
-        setSections(updatedSections); // Update the section array
-      });
-    }
-  };
+				modifiedFeatures.forEach((feature: Feature) => {
+					const geometry = feature.getGeometry() as LineString;
+					const coordinates = geometry.getCoordinates();
+					const lonLatCoordinates = coordinates.map((coord) => {
+						const lonLat = toLonLat(coord);
+						return lonLat.map((value) =>
+							parseFloat(value.toFixed(4))
+						) as Coordinate;
+					});
+					const length = getLength(geometry);
 
-  // Generate a random color
-  const generateRandomColor = () => {
-    const letters = '0123456789ABCDEF';
-    let color = '#';
-    for (let i = 0; i < 6; i++) {
-      color += letters[Math.floor(Math.random() * 16)];
-    }
-    return color;
-  };
+					const updatedSection = {
+						id: feature.getId() as string, // Use the feature ID to update the correct section
+						coordinates: lonLatCoordinates,
+						length,
+						azimuth: calculateAzimuth(coordinates),
+						color: feature.get('color'),
+					};
 
-  const startDrawing = () => {
-    if (!map || !isMapReady || !vectorLayer) {
-      console.error('Map is not initialized or not ready yet.');
-      return;
-    }
+					// Find the section by ID and update it in the array
+					const sectionIndex = updatedSections.findIndex(
+						(section) => section.id === updatedSection.id
+					);
+					if (sectionIndex !== -1) {
+						updatedSections[sectionIndex] = updatedSection;
+					}
+				});
 
-    if (!isDrawing) {
-      const draw = new Draw({
-        source: vectorLayer.getSource()!,
-        type: 'LineString',
-        maxPoints: 2,
-      });
+				setSections(updatedSections); // Update the state with the modified section
+			});
+		}
+	};
 
-      map.addInteraction(draw);
-      setDrawInteraction(draw);
-      setIsDrawing(true);
+	// Generate a random color
+	const generateRandomColor = () => {
+		const letters = '0123456789ABCDEF';
+		let color = '#';
+		for (let i = 0; i < 6; i++) {
+			color += letters[Math.floor(Math.random() * 16)];
+		}
+		return color;
+	};
 
-      draw.on('drawend', (event) => {
-        const feature = event.feature as Feature;
-        const geometry = feature.getGeometry() as LineString;
-        const coordinates = geometry.getCoordinates() as Coordinate[];
+	const startDrawing = () => {
+		if (!map || !isMapReady || !vectorLayer) {
+			console.error('Map is not initialized or not ready yet.');
+			return;
+		}
 
-        if (coordinates.length === 2) {
-          const lonLatCoords = coordinates.map((coord) =>
-            toLonLat(coord).map((value) => parseFloat(value.toFixed(4))) as Coordinate
-          );
+		if (!isDrawing) {
+			const draw = new Draw({
+				source: vectorLayer.getSource()!,
+				type: 'LineString',
+				maxPoints: 2,
+			});
 
-          const length = getLength(geometry);
-          const azimuthValue = calculateAzimuth(coordinates);
-          const color = generateRandomColor(); // Generate a random color
+			map.addInteraction(draw);
+			setDrawInteraction(draw);
+			setIsDrawing(true);
 
-          const newSection: Section = {
-            coordinates: lonLatCoords,
-            length,
-            azimuth: azimuthValue,
-            color,
-          };
+			draw.on('drawend', (event) => {
+				const feature = event.feature as Feature;
+				const geometry = feature.getGeometry() as LineString;
+				const coordinates = geometry.getCoordinates() as Coordinate[];
 
-          // Style the drawn feature with a random color
-          feature.setStyle(
-            new Style({
-              stroke: new Stroke({
-                color, // Apply the random color
-                width: 2,
-              }),
-            })
-          );
+				if (coordinates.length === 2) {
+					const lonLatCoords = coordinates.map(
+						(coord) =>
+							toLonLat(coord).map((value) =>
+								parseFloat(value.toFixed(4))
+							) as Coordinate
+					);
 
-          feature.set('color', color); // Save the color in the feature's properties
+					const length = getLength(geometry);
+					const azimuthValue = calculateAzimuth(coordinates);
+					const color = generateRandomColor(); // Generate a random color
 
-          setSections((prevSections) => [...prevSections, newSection]);
-        }
+					const uniqueId = `${Date.now()}-${Math.random()}`; // Create a unique ID
 
-        stopDrawing();
-      });
-    }
-  };
+					const newSection: Section = {
+						id: uniqueId, // Assign the generated unique ID
+						coordinates: lonLatCoords,
+						length,
+						azimuth: azimuthValue,
+						color,
+					};
 
-  const calculateAzimuth = (coordinates: Coordinate[]) => {
-    const [lon1, lat1] = coordinates[0].slice(0, 2);
-    const [lon2, lat2] = coordinates[1].slice(0, 2);
+					// Style the drawn feature with a random color
+					feature.setStyle(
+						new Style({
+							stroke: new Stroke({
+								color, // Apply the random color
+								width: 2,
+							}),
+						})
+					);
 
-    const deltaLon = lon2 - lon1;
-    const deltaLat = lat2 - lat1;
+					feature.set('color', color); // Save the color in the feature's properties
+					feature.setId(uniqueId); // Set the ID on the feature
 
-    const angleRad = Math.atan2(deltaLon, deltaLat);
-    const angleDeg = (angleRad * 180) / Math.PI;
+					setSections((prevSections) => [
+						...prevSections,
+						newSection,
+					]);
+				}
 
-    return (angleDeg + 360) % 360;
-  };
+				stopDrawing();
+			});
+		}
+	};
 
-  const stopDrawing = () => {
-    if (map && drawInteraction) {
-      map.removeInteraction(drawInteraction);
-      setIsDrawing(false);
-      setDrawInteraction(null);
+	const calculateAzimuth = (coordinates: Coordinate[]) => {
+		const [lon1, lat1] = coordinates[0].slice(0, 2);
+		const [lon2, lat2] = coordinates[1].slice(0, 2);
 
-      // Enable modify interaction again after drawing stops
-      enableModifyInteraction();
-    }
-  };
+		const deltaLon = lon2 - lon1;
+		const deltaLat = lat2 - lat1;
 
-  const deleteAllLines = () => {
-    if (vectorLayer) {
-      vectorLayer.getSource()?.clear();
-      setSections([]);
-    }
-  };
+		const angleRad = Math.atan2(deltaLon, deltaLat);
+		const angleDeg = (angleRad * 180) / Math.PI;
 
-  const convertLength = (length: number) => {
-    return lengthUnit === 'km' ? length / 1000 : length / 1609.34;
-  };
+		return (angleDeg + 360) % 360;
+	};
 
-  const convertAzimuth = (azimuth: number) => {
-    return azimuthUnit === 'degrees' ? azimuth : (azimuth * Math.PI) / 180;
-  };
+	const stopDrawing = () => {
+		if (map && drawInteraction) {
+			map.removeInteraction(drawInteraction);
+			setIsDrawing(false);
+			setDrawInteraction(null);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setManualCoordinates((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+			enableModifyInteraction();
+		}
+	};
 
-  const handleCreateSection = () => {
-    const { x1, y1, x2, y2 } = manualCoordinates;
+	const deleteAllLines = () => {
+		if (vectorLayer) {
+			vectorLayer.getSource()?.clear();
+			setSections([]);
+		}
+	};
 
-    if (!x1 || !y1 || !x2 || !y2) {
-      alert('Please provide valid coordinates.');
-      return;
-    }
+	const convertLength = (length: number) => {
+		return lengthUnit === 'km' ? length / 1000 : length / 1609.34;
+	};
 
-    const start = [parseFloat(x1), parseFloat(y1)] as Coordinate;
-    const end = [parseFloat(x2), parseFloat(y2)] as Coordinate;
+	const convertAzimuth = (azimuth: number) => {
+		return azimuthUnit === 'degrees' ? azimuth : (azimuth * Math.PI) / 180;
+	};
 
-    const coordinates = [fromLonLat(start), fromLonLat(end)];
-    const geometry = new LineString(coordinates);
-    const length = getLength(geometry);
-    const azimuthValue = calculateAzimuth(coordinates);
-    const color = generateRandomColor(); // Generate a random color
+	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const { name, value } = e.target;
+		setManualCoordinates((prev) => ({
+			...prev,
+			[name]: value,
+		}));
+	};
 
-    const newSection: Section = {
-      coordinates: [start, end],
-      length,
-      azimuth: azimuthValue,
-      color,
-    };
+	const handleCreateSection = () => {
+		const { x1, y1, x2, y2 } = manualCoordinates;
 
-    setSections((prevSections) => [...prevSections, newSection]);
+		if (!x1 || !y1 || !x2 || !y2) {
+			alert('Please provide valid coordinates.');
+			return;
+		}
 
-    // Create a new feature with the LineString geometry and add it to the vector layer
-    const feature = new Feature({
-      geometry: new LineString(coordinates),
-    });
+		const start = [parseFloat(x1), parseFloat(y1)] as Coordinate;
+		const end = [parseFloat(x2), parseFloat(y2)] as Coordinate;
 
-    // Apply a style to the feature with the random color
-    feature.setStyle(
-      new Style({
-        stroke: new Stroke({
-          color, // Apply the random color
-          width: 2,
-        }),
-      })
-    );
+		const coordinates = [fromLonLat(start), fromLonLat(end)];
+		const geometry = new LineString(coordinates);
+		const length = getLength(geometry);
+		const azimuthValue = calculateAzimuth(coordinates);
+		const color = generateRandomColor(); // Generate a random color
 
-    feature.set('color', color); // Save the color in the feature's properties
+		const uniqueId = `${Date.now()}-${Math.random()}`; // Generate a unique ID
 
-    vectorLayer?.getSource()?.addFeature(feature); // Add the feature to the vector source
-  };
+		const newSection: Section = {
+			id: uniqueId, // Assign the unique ID
+			coordinates: [start, end],
+			length,
+			azimuth: azimuthValue,
+			color,
+		};
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 560, width: '700px' }}>
-      <div style={{ display: 'flex',justifyContent: 'space-between' , gap: '16px', border: '1px solid #666666', borderRadius: '8px', padding: '8px', marginTop: '65px' }}>
-        {!isDrawing ? (
-          <button onClick={startDrawing}>
-            Start Drawing
-          </button>
-        ) : (
-          <button onClick={stopDrawing}>
-            Stop Drawing
-          </button>
-        )}
-        <button onClick={deleteAllLines}>
-          Delete All Lines
-        </button>
+		setSections((prevSections) => [...prevSections, newSection]);
 
-        <div style={{display: 'flex', flexDirection: 'column', justifyContent: 'center', backgroundColor: '#1a1a1a', borderRadius: '8px', padding: '0.6em 1.2em', gap: '4px'}}>
-          <label>Length Unit: </label>
-          <select style={{ borderRadius: '8px', backgroundColor: '#444444', padding: '0.1em 0.2em' }} value={lengthUnit} onChange={(e) => setLengthUnit(e.target.value as 'km' | 'miles')}>
-            <option value="km">Kilometers</option>
-            <option value="miles">Miles</option>
-          </select>
-        </div>
+		// Create a new feature with the LineString geometry and add it to the vector layer
+		const feature = new Feature({
+			geometry: new LineString(coordinates),
+		});
 
-        <div style={{display: 'flex', flexDirection: 'column', justifyContent: 'center', backgroundColor: '#1a1a1a', borderRadius: '8px', padding: '0.6em 1.2em', gap: '4px'}}>
-          <label>Azimuth Unit: </label>
-          <select style={{ borderRadius: '8px', backgroundColor: '#444444', padding: '0.1em 0.2em' }} value={azimuthUnit} onChange={(e) => setAzimuthUnit(e.target.value as 'degrees' | 'radians')}>
-            <option value="degrees">Degrees</option>
-            <option value="radians">Radians</option>
-          </select>
-        </div>
-      </div>
+		// Apply a style to the feature with the random color
+		feature.setStyle(
+			new Style({
+				stroke: new Stroke({
+					color, // Apply the random color
+					width: 2,
+				}),
+			})
+		);
 
-      {/* Manual Coordinate Input Form */}
-      <div style={{ padding: '0.4em 0.6em', marginTop: '20px', display: 'flex', gap: '8px', border: '1px solid #666666', borderRadius: '8px' }}>
-        <input
-          type="text"
-          name="x1"
-          placeholder="X1"
-          value={manualCoordinates.x1}
-          onChange={handleInputChange}
-          style={{ flex: '1', minWidth: '100px', backgroundColor: '#1a1a1a', borderRadius: '8px' }}
-        />
-        <input
-          type="text"
-          name="y1"
-          placeholder="Y1"
-          value={manualCoordinates.y1}
-          onChange={handleInputChange}
-          style={{ flex: '1', minWidth: '130px', backgroundColor: '#1a1a1a', borderRadius: '8px'  }}
-        />
-        <input
-          type="text"
-          name="x2"
-          placeholder="X2"
-          value={manualCoordinates.x2}
-          onChange={handleInputChange}
-          style={{ flex: '1', minWidth: '130px', backgroundColor: '#1a1a1a', borderRadius: '8px'  }}
-        />
-        <input
-          type="text"
-          name="y2"
-          placeholder="Y2"
-          value={manualCoordinates.y2}
-          onChange={handleInputChange}
-          style={{ flex: '1', minWidth: '130px', backgroundColor: '#1a1a1a', borderRadius: '8px'  }}
-        />
-        <button onClick={handleCreateSection} style={{display: 'flex', alignItems: 'center', padding: '12px'}}>Create Section</button>
-      </div>
+		feature.set('color', color); // Save the color in the feature's properties
+		feature.setId(uniqueId); // Set the unique ID on the feature
 
-      <div style={{ marginTop: '20px', overflowY: 'auto', flex: 1 }}>
-        <h3>Current Sections</h3>
+		vectorLayer?.getSource()?.addFeature(feature); // Add the feature to the vector source
+	};
 
-        {sections.length > 0 && (
-          <div style={{ display: 'flex', fontWeight: 'bold', gap: '24px', marginBottom: '10px', borderBottom: '1px solid #ccc', paddingBottom: '8px' }}>
-            <div style={{ flex: 1 }}>Color</div>
-            <div style={{ flex: 3 }}>Coordinates [x ,y] → [x, y]</div>
-            <div style={{ flex: 1 }}>Length [{lengthUnit === 'km' ? 'km' : 'miles'}]</div>
-            <div style={{ flex: 1 }}>Azimuth [{azimuthUnit === 'degrees' ? '°' : 'radians'}]</div>
-          </div>
-        )}
+	return (
+		<div className="section-drawer">
+			<div className="section-drawer__controls">
+				{!isDrawing ? (
+					<button
+						className="section-drawer__button"
+						onClick={startDrawing}
+					>
+						Start Drawing
+					</button>
+				) : (
+					<button
+						className="section-drawer__button"
+						onClick={stopDrawing}
+					>
+						Stop Drawing
+					</button>
+				)}
+				<button
+					className="section-drawer__button--delete"
+					onClick={deleteAllLines}
+				>
+					Delete All Lines
+				</button>
 
-        <div>
-          {sections.length === 0 ? (
-            <p style={{ color: '#888', fontStyle: 'italic' }}>No sections available.</p>
-          ) : (
-            sections.map((section, index) => (
-              <div key={index} style={{ display: 'flex', gap: '24px', marginBottom: '10px' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{
-                    width: '20px',
-                    height: '20px',
-                    backgroundColor: section.color,
-                    border: '1px solid #ccc',
-                    borderRadius: '50%',
-                    margin: 'auto'
-                  }}></div>
-                </div>
-                <div style={{ flex: 3 }}>
-                  [{section.coordinates[0].join(', ')}] → [{section.coordinates[1].join(', ')}]
-                </div>
-                <div style={{ flex: 1 }}>{convertLength(section.length).toFixed(2)}</div>
-                <div style={{ flex: 1 }}>{convertAzimuth(section.azimuth).toFixed(2)}</div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  );
+				<div className="section-drawer__options">
+					<div className="section-drawer__unit-selector">
+						<label>Length Unit: </label>
+						<select
+							className="section-drawer__select"
+							value={lengthUnit}
+							onChange={(e) =>
+								setLengthUnit(e.target.value as 'km' | 'miles')
+							}
+						>
+							<option value="km">Kilometers</option>
+							<option value="miles">Miles</option>
+						</select>
+					</div>
+
+					<div className="section-drawer__unit-selector">
+						<label>Azimuth Unit: </label>
+						<select
+							className="section-drawer__select"
+							value={azimuthUnit}
+							onChange={(e) =>
+								setAzimuthUnit(
+									e.target.value as 'degrees' | 'radians'
+								)
+							}
+						>
+							<option value="degrees">Degrees</option>
+							<option value="radians">Radians</option>
+						</select>
+					</div>
+				</div>
+			</div>
+			<div className="section-drawer__coordinates">
+				<div className="section-drawer__coordinates--point">
+					<input
+						type="text"
+						name="x1"
+						placeholder="X1"
+						value={manualCoordinates.x1}
+						onChange={handleInputChange}
+						className="section-drawer__input"
+					/>
+					<input
+						type="text"
+						name="y1"
+						placeholder="Y1"
+						value={manualCoordinates.y1}
+						onChange={handleInputChange}
+						className="section-drawer__input"
+					/>
+				</div>
+				<div className="section-drawer__coordinates--point">
+					<input
+						type="text"
+						name="x2"
+						placeholder="X2"
+						value={manualCoordinates.x2}
+						onChange={handleInputChange}
+						className="section-drawer__input"
+					/>
+					<input
+						type="text"
+						name="y2"
+						placeholder="Y2"
+						value={manualCoordinates.y2}
+						onChange={handleInputChange}
+						className="section-drawer__input"
+					/>
+				</div>
+				<button
+					className="section-drawer__button"
+					onClick={handleCreateSection}
+				>
+					Create Section
+				</button>
+			</div>
+
+			<div className="section-drawer__sections">
+				<h3>Current Sections</h3>
+
+				{sections.length > 0 ? (
+					<div className="section-drawer__header">
+						<div className="section-drawer__column">Color</div>
+						<div className="section-drawer__column">
+							<span>Coordinates</span>
+							<span>[x ,y] → [x, y]</span>
+						</div>
+						<div className="section-drawer__column">
+							<span>Length</span>
+							<span>
+								[{lengthUnit === 'km' ? 'km' : 'miles'}]
+							</span>
+						</div>
+						<div className="section-drawer__column">
+							<span>Azimuth</span>
+							<span className="section-drawer__column--azimuth">
+								[{azimuthUnit === 'degrees' ? '°' : 'radians'}]
+							</span>
+						</div>
+					</div>
+				) : (
+					<p className="section-drawer__no-sections">
+						No sections available.
+					</p>
+				)}
+
+				<div>
+					{sections.map((section, index) => (
+						<div key={index} className="section-drawer__row">
+							<div className="section-drawer__cell">
+								<div
+									className="section-drawer__color"
+									style={{ backgroundColor: section.color }}
+								></div>
+							</div>
+							<div className="section-drawer__cell--coordinates">
+								[{section.coordinates[0].join(',')}] [
+								{section.coordinates[1].join(',')}]
+							</div>
+							<div className="section-drawer__cell">
+								{convertLength(section.length).toFixed(2)}
+							</div>
+							<div className="section-drawer__cell">
+								{convertAzimuth(section.azimuth).toFixed(2)}
+							</div>
+						</div>
+					))}
+				</div>
+			</div>
+		</div>
+	);
 };
 
 export default SectionDrawer;
