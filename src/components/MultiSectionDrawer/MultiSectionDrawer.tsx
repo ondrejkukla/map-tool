@@ -9,8 +9,10 @@ import { fromLonLat, toLonLat } from 'ol/proj';
 import MapContext from '../MapContext/MapContext';
 import { Stroke, Style } from 'ol/style';
 import { Coordinate } from 'ol/coordinate';
+import './MultiSectionDrawer.css';
 
 interface SectionData {
+	id: string;
 	coordinates: Coordinate[];
 	length: number;
 	color: string;
@@ -27,7 +29,7 @@ const MultiSectionDrawer: React.FC = () => {
 	>([
 		{ x: '', y: '' },
 		{ x: '', y: '' },
-	]); // Initialize with two default points
+	]);
 
 	const [lengthUnit, setLengthUnit] = useState<'km' | 'miles'>('km');
 
@@ -48,29 +50,33 @@ const MultiSectionDrawer: React.FC = () => {
 
 			modify.on('modifyend', (event) => {
 				const modifiedFeatures = event.features.getArray();
-				const updatedSections = modifiedFeatures.map(
-					(feature: Feature) => {
-						const geometry = feature.getGeometry() as LineString;
-						const coordinates = geometry.getCoordinates();
-						const lonLatCoordinates = coordinates.map((coord) =>
-							toLonLat(coord)
-						);
-						const length = getLength(geometry);
+				const updatedSections = [...sectionsData];
 
-						return {
+				modifiedFeatures.forEach((feature: Feature) => {
+					const geometry = feature.getGeometry() as LineString;
+					const coordinates = geometry.getCoordinates();
+					const lonLatCoordinates = coordinates.map((coord) =>
+						toLonLat(coord)
+					);
+					const length = getLength(geometry);
+					const id = feature.getId() as string;
+					const sectionIndex = updatedSections.findIndex(
+						(section) => section.id === id
+					);
+					if (sectionIndex !== -1) {
+						updatedSections[sectionIndex] = {
+							...updatedSections[sectionIndex],
 							coordinates: lonLatCoordinates,
 							length,
-							color: feature.get('color'), // Keep the color of the section
 						};
 					}
-				);
+				});
 
 				setSectionsData(updatedSections);
 			});
 		}
 	};
 
-	// Generate a random color
 	const generateRandomColor = () => {
 		const letters = '0123456789ABCDEF';
 		let color = '#';
@@ -104,25 +110,26 @@ const MultiSectionDrawer: React.FC = () => {
 					toLonLat(coord)
 				);
 				const length = getLength(geometry);
-				const color = generateRandomColor(); // Generate random color
+				const color = generateRandomColor();
 
 				const newSectionData: SectionData = {
+					id: Math.random().toString(36).substr(2, 9),
 					coordinates: lonLatCoordinates,
 					length,
-					color, // Store the random color
+					color,
 				};
 
-				// Style the feature with the random color
 				feature.setStyle(
 					new Style({
 						stroke: new Stroke({
-							color, // Apply the random color
+							color,
 							width: 2,
 						}),
 					})
 				);
 
-				feature.set('color', color); // Save color in the feature's properties
+				feature.setId(newSectionData.id);
+				feature.set('color', color);
 
 				setSectionsData((prev) => [...prev, newSectionData]);
 				stopDrawing();
@@ -168,15 +175,16 @@ const MultiSectionDrawer: React.FC = () => {
 
 		const geometry = new LineString(coordinates);
 		const length = getLength(geometry);
-		const color = generateRandomColor(); // Generate random color
+		const color = generateRandomColor();
 
 		const newSection: SectionData = {
+			id: Math.random().toString(36).substr(2, 9),
 			coordinates: validCoordinates.map(
 				(point) =>
 					[parseFloat(point.x), parseFloat(point.y)] as Coordinate
 			),
 			length,
-			color, // Store the random color
+			color,
 		};
 
 		setSectionsData((prevSections) => [...prevSections, newSection]);
@@ -185,21 +193,20 @@ const MultiSectionDrawer: React.FC = () => {
 			geometry,
 		});
 
-		// Apply random color to the drawn feature
 		feature.setStyle(
 			new Style({
 				stroke: new Stroke({
-					color, // Apply the random color
+					color,
 					width: 2,
 				}),
 			})
 		);
 
-		feature.set('color', color); // Save the color in the feature's properties
+		feature.setId(newSection.id);
+		feature.set('color', color);
 
 		vectorLayer?.getSource()?.addFeature(feature);
 
-		// Reset the coordinates input fields
 		setManualCoordinates([
 			{ x: '', y: '' },
 			{ x: '', y: '' },
@@ -223,25 +230,31 @@ const MultiSectionDrawer: React.FC = () => {
 	};
 
 	return (
-		<div
-			style={{
-				display: 'flex',
-				flexDirection: 'column',
-				height: 560,
-				width: '700px',
-			}}
-		>
-			<div style={{ display: 'flex', gap: '16px' }}>
+		<div className="multi-section-drawer">
+			<div className="multi-section-drawer__controls">
 				{!isDrawing ? (
-					<button onClick={startDrawing}>
-						Start Drawing Sections
+					<button
+						className="multi-section-drawer__button multi-section-drawer__button--start"
+						onClick={startDrawing}
+					>
+						Start Drawing
 					</button>
 				) : (
-					<button onClick={stopDrawing}>Stop Drawing</button>
+					<button
+						className="multi-section-drawer__button multi-section-drawer__button--stop"
+						onClick={stopDrawing}
+					>
+						Stop Drawing
+					</button>
 				)}
-				<button onClick={deleteAllSections}>Delete All Sections</button>
+				<button
+					className="multi-section-drawer__button multi-section-drawer__button--delete"
+					onClick={deleteAllSections}
+				>
+					Delete All Lines
+				</button>
 
-				<div>
+				<div className="multi-section-drawer__unit-selector">
 					<label>Length Unit: </label>
 					<select
 						value={lengthUnit}
@@ -255,16 +268,11 @@ const MultiSectionDrawer: React.FC = () => {
 				</div>
 			</div>
 
-			{/* Manual Coordinate Input Form */}
-			<div style={{ marginTop: '20px' }}>
+			<div className="multi-section-drawer__input-form">
 				{manualCoordinates.map((point, index) => (
 					<div
 						key={index}
-						style={{
-							display: 'flex',
-							gap: '8px',
-							marginBottom: '10px',
-						}}
+						className="multi-section-drawer__input-row"
 					>
 						<input
 							type="text"
@@ -273,6 +281,7 @@ const MultiSectionDrawer: React.FC = () => {
 							onChange={(e) =>
 								handleInputChange(index, 'x', e.target.value)
 							}
+							className="section-drawer__input"
 						/>
 						<input
 							type="text"
@@ -281,73 +290,71 @@ const MultiSectionDrawer: React.FC = () => {
 							onChange={(e) =>
 								handleInputChange(index, 'y', e.target.value)
 							}
+							className="section-drawer__input"
 						/>
 						{manualCoordinates.length > 2 && (
-							<button onClick={() => handleRemovePoint(index)}>
+							<button
+								className="multi-section-drawer__remove-button"
+								onClick={() => handleRemovePoint(index)}
+							>
 								Remove
 							</button>
 						)}
 					</div>
 				))}
-				<button onClick={handleAddPoint}>Add Point</button>
+				<button
+					className="multi-section-drawer__add-button"
+					onClick={handleAddPoint}
+				>
+					Add Point
+				</button>
+
+				<button
+					className="multi-section-drawer__create-button"
+					onClick={handleCreateSection}
+				>
+					Create Section
+				</button>
 			</div>
 
-			<button onClick={handleCreateSection} style={{ marginTop: '20px' }}>
-				Create Section
-			</button>
-
-			{/* Display section data */}
-			<div style={{ marginTop: '20px', overflowY: 'auto', flex: 1 }}>
+			<div className="multi-section-drawer__sections-list">
 				<h3>Current Sections</h3>
 
 				{sectionsData.length > 0 && (
-					<div
-						style={{
-							display: 'flex',
-							fontWeight: 'bold',
-							gap: '24px',
-							marginBottom: '10px',
-							borderBottom: '1px solid #ccc',
-							paddingBottom: '8px',
-						}}
-					>
-						<div style={{ flex: 1 }}>Color</div>
-						<div style={{ flex: 3 }}>
-							Coordinates [x ,y] → [x, y]
+					<div className="multi-section-drawer__header">
+						<div className="multi-section-drawer__header-item--color">
+							Color
 						</div>
-						<div style={{ flex: 1 }}>
-							Length [{lengthUnit === 'km' ? 'km' : 'miles'}]
+						<div className="multi-section-drawer__header-item--coordinates">
+							<span>Coordinates</span>
+							<span>[x ,y] → [x, y]</span>{' '}
+						</div>
+						<div className="multi-section-drawer__header-item">
+							<span>Length</span>
+							<span>
+								[{lengthUnit === 'km' ? 'km' : 'miles'}]
+							</span>
 						</div>
 					</div>
 				)}
 
 				{sectionsData.length === 0 ? (
-					<p style={{ color: '#888', fontStyle: 'italic' }}>
+					<p className="multi-section-drawer__no-sections">
 						No sections available.
 					</p>
 				) : (
 					sectionsData.map((section, index) => (
 						<div
 							key={index}
-							style={{
-								display: 'flex',
-								gap: '24px',
-								marginBottom: '10px',
-							}}
+							className="multi-section-drawer__section-row"
 						>
-							<div style={{ flex: 1 }}>
+							<div className="multi-section-drawer__color">
 								<div
-									style={{
-										width: '20px',
-										height: '20px',
-										backgroundColor: section.color,
-										border: '1px solid #ccc',
-										borderRadius: '50%',
-										margin: 'auto',
-									}}
+									className="multi-section-drawer__color-indicator"
+									style={{ backgroundColor: section.color }}
 								></div>
 							</div>
-							<div style={{ flex: 3 }}>
+							<div className="multi-section-drawer__coordinates">
 								{section.coordinates
 									.map(
 										(coord) =>
@@ -355,7 +362,7 @@ const MultiSectionDrawer: React.FC = () => {
 									)
 									.join(' → ')}
 							</div>
-							<div style={{ flex: 1 }}>
+							<div className="multi-section-drawer__length">
 								{convertLength(section.length).toFixed(2)}
 							</div>
 						</div>

@@ -4,7 +4,7 @@ import { Map, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
 import XYZ from 'ol/source/XYZ';
 import { fromLonLat } from 'ol/proj';
-import MapContext from '../MapContext/MapContext'; // Import the context
+import MapContext from '../MapContext/MapContext';
 import SectionDrawer from '../SectionDrawer/SectionDrawer';
 import PolygonDrawer from '../MultiSectionDrawer/MultiSectionDrawer';
 import './MapView.css';
@@ -13,7 +13,6 @@ const MapView: React.FC = () => {
 	const mapRef = useRef<HTMLDivElement>(null);
 	const [mapInstance, setMapInstance] = useState<Map | null>(null);
 	const [isMapReady, setIsMapReady] = useState(false);
-	// State to track the selected mode (Section or Polygon)
 	const [mode, setMode] = useState<'section' | 'polygon'>(
 		(localStorage.getItem('drawingMode') as 'section' | 'polygon') ||
 			'section'
@@ -21,7 +20,6 @@ const MapView: React.FC = () => {
 
 	useEffect(() => {
 		if (mapRef.current && !mapInstance) {
-			// Check that we have a div and no map instance yet
 			const olMap = new Map({
 				target: mapRef.current,
 				layers: [
@@ -39,38 +37,35 @@ const MapView: React.FC = () => {
 			});
 
 			setMapInstance(olMap);
-			setIsMapReady(true); // Indicate that the map is ready
+			setIsMapReady(true);
 
-			// Define cleanup function here within useEffect to capture the current olMap
 			return () => {
-				olMap.setTarget(undefined); // Disconnect the map from the DOM correctly
-				setIsMapReady(false); // Reset readiness state
+				olMap.setTarget(undefined);
+				setIsMapReady(false);
 			};
 		}
-	}, []); // Empty dependency array means this effect runs only once
+	}, []);
 
-	// Handle mode change (section or polygon)
 	const handleModeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setMode(e.target.value as 'section' | 'polygon');
 	};
 
 	const handleReset = () => {
-		window.location.reload(); // Reload the page
+		window.location.reload();
 	};
 
 	return (
 		<MapContext.Provider value={{ map: mapInstance, isMapReady }}>
 			<div className="map__container">
 				<div className="mapView__controls">
-					{/* Radio buttons for mode selection */}
 					<div className="mapView__mode-selector">
-						{/* Reset Button */}
 						<button
 							className="mapView__reset-button"
 							onClick={handleReset}
 						>
 							Reset
 						</button>
+						<div className='mapView__label-container'>
 						<label className="mapView__label">
 							<input
 								type="radio"
@@ -89,11 +84,11 @@ const MapView: React.FC = () => {
 							/>
 							Polyline Mode
 						</label>
+						</div>
 					</div>
 					<div id="map" ref={mapRef} className="mapView__map" />
 				</div>
 
-				{/* Conditional rendering of components based on the selected mode */}
 				{mode === 'section' && <SectionDrawer />}
 				{mode === 'polygon' && <PolygonDrawer />}
 			</div>

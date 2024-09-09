@@ -54,11 +54,9 @@ const SectionDrawer = () => {
 			const modify = new Modify({ source: vectorLayer.getSource()! });
 			map.addInteraction(modify);
 
-			// Listen for modifications and update the specific section data
 			modify.on('modifyend', (event) => {
 				const modifiedFeatures = event.features.getArray();
-
-				const updatedSections = [...sections]; // Copy the current sections array
+				const updatedSections = [...sections];
 
 				modifiedFeatures.forEach((feature: Feature) => {
 					const geometry = feature.getGeometry() as LineString;
@@ -72,14 +70,13 @@ const SectionDrawer = () => {
 					const length = getLength(geometry);
 
 					const updatedSection = {
-						id: feature.getId() as string, // Use the feature ID to update the correct section
+						id: feature.getId() as string,
 						coordinates: lonLatCoordinates,
 						length,
 						azimuth: calculateAzimuth(coordinates),
 						color: feature.get('color'),
 					};
 
-					// Find the section by ID and update it in the array
 					const sectionIndex = updatedSections.findIndex(
 						(section) => section.id === updatedSection.id
 					);
@@ -88,12 +85,11 @@ const SectionDrawer = () => {
 					}
 				});
 
-				setSections(updatedSections); // Update the state with the modified section
+				setSections(updatedSections);
 			});
 		}
 	};
 
-	// Generate a random color
 	const generateRandomColor = () => {
 		const letters = '0123456789ABCDEF';
 		let color = '#';
@@ -135,30 +131,29 @@ const SectionDrawer = () => {
 
 					const length = getLength(geometry);
 					const azimuthValue = calculateAzimuth(coordinates);
-					const color = generateRandomColor(); // Generate a random color
+					const color = generateRandomColor();
 
-					const uniqueId = `${Date.now()}-${Math.random()}`; // Create a unique ID
+					const uniqueId = `${Date.now()}-${Math.random()}`;
 
 					const newSection: Section = {
-						id: uniqueId, // Assign the generated unique ID
+						id: uniqueId,
 						coordinates: lonLatCoords,
 						length,
 						azimuth: azimuthValue,
 						color,
 					};
 
-					// Style the drawn feature with a random color
 					feature.setStyle(
 						new Style({
 							stroke: new Stroke({
-								color, // Apply the random color
+								color,
 								width: 2,
 							}),
 						})
 					);
 
-					feature.set('color', color); // Save the color in the feature's properties
-					feature.setId(uniqueId); // Set the ID on the feature
+					feature.set('color', color);
+					feature.setId(uniqueId);
 
 					setSections((prevSections) => [
 						...prevSections,
@@ -227,17 +222,14 @@ const SectionDrawer = () => {
 
 		const start = [parseFloat(x1), parseFloat(y1)] as Coordinate;
 		const end = [parseFloat(x2), parseFloat(y2)] as Coordinate;
-
 		const coordinates = [fromLonLat(start), fromLonLat(end)];
 		const geometry = new LineString(coordinates);
 		const length = getLength(geometry);
 		const azimuthValue = calculateAzimuth(coordinates);
-		const color = generateRandomColor(); // Generate a random color
-
-		const uniqueId = `${Date.now()}-${Math.random()}`; // Generate a unique ID
-
+		const color = generateRandomColor();
+		const uniqueId = `${Date.now()}-${Math.random()}`;
 		const newSection: Section = {
-			id: uniqueId, // Assign the unique ID
+			id: uniqueId,
 			coordinates: [start, end],
 			length,
 			azimuth: azimuthValue,
@@ -246,25 +238,23 @@ const SectionDrawer = () => {
 
 		setSections((prevSections) => [...prevSections, newSection]);
 
-		// Create a new feature with the LineString geometry and add it to the vector layer
 		const feature = new Feature({
 			geometry: new LineString(coordinates),
 		});
 
-		// Apply a style to the feature with the random color
 		feature.setStyle(
 			new Style({
 				stroke: new Stroke({
-					color, // Apply the random color
+					color,
 					width: 2,
 				}),
 			})
 		);
 
-		feature.set('color', color); // Save the color in the feature's properties
-		feature.setId(uniqueId); // Set the unique ID on the feature
+		feature.set('color', color);
+		feature.setId(uniqueId);
 
-		vectorLayer?.getSource()?.addFeature(feature); // Add the feature to the vector source
+		vectorLayer?.getSource()?.addFeature(feature);
 	};
 
 	return (

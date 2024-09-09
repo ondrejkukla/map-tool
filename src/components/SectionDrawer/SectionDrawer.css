@@ -1,12 +1,11 @@
-/* Section Drawer Styles */
 .section-drawer {
 	display: flex;
 	flex-direction: column;
 	justify-content: start;
 	height: 100%;
-	width: 450px;
+	max-width: 450px;
+	min-width: 450px;
 	background-color: #444444;
-	z-index: 5;
 	border-left: 2px solid #bbbbbb;
 }
 
@@ -25,19 +24,30 @@
 	display: flex;
 	justify-content: center;
 	gap: 16px;
+	padding-top: 16px;
 }
 
 .section-drawer__button {
 	padding: 2em 1.2em;
 	border-radius: 8px;
-	background-color: #1a1a1a;
+	background-color: #4caf50;
 	color: white;
 	border: none;
 	cursor: pointer;
 }
 
+.section-drawer__button:hover {
+	background-color: #45a049;
+}
+
 .section-drawer__button--delete {
-	padding: 1.2em 1.2em;
+	padding: 1.2em;
+	background-color: #ff4d4f;
+	border: 0px;
+}
+
+.section-drawer__button--delete:hover {
+	background-color: #d9363e;
 }
 
 .section-drawer__unit-selector {
@@ -51,7 +61,7 @@
 }
 
 .section-drawer__select {
-	border-radius: 8px;
+	border-radius: 16px;
 	background-color: #444;
 	padding: 0.1em 0.2em;
 }
