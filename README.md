@@ -1,6 +1,6 @@
 # Map tool
 
-## 1. How to run
+## How to run
 
 ### Run remotely
 [Map tool online](https://ondrejkukla.github.io/map-tool/)
@@ -19,4 +19,10 @@
     - Hover over the map and create a  curve (`Right mouse button` / `Stop Drawing` button will end the action)
         * OR
     - Click Stop Drawing button and fill coordinates manually (`x=longtitude` `y=lattitude`)
-        *  *Coordinates of Brno Longitude: 16.6068 Latitude: 49.1951 as an example*
+        *  *Coordinates of Brno x = 16.6068 y = 49.1951 as an example*
+
+## Preview
+
+![Screen mode preview](./public/section_mode.png)
+
+![Polyline mode preview](./public/section_mode.png)
