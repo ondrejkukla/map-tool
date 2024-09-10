@@ -23,8 +23,8 @@
 
 ## Preview
 
-![Screen mode preview](./public/section_mode.png)
+at the `./public/preview` are screens of the app as it looks at my end
 
-![Polyline mode preview](./public/section_mode.png)
+##
 
 Please be kind the app is still buggy and does not contain angle measurement between intersecting lines
